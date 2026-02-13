@@ -294,22 +294,42 @@
         }
     }
 
+    document.addEventListener('mousemove', (e) => {
+        const noBtn = document.getElementById('noBtn');
+        const rect = noBtn.getBoundingClientRect();
+        
+        // Calculate distance between mouse and center of button
+        const btnCenterX = rect.left + rect.width / 2;
+        const btnCenterY = rect.top + rect.height / 2;
+        
+        const distance = Math.sqrt(
+            Math.pow(e.clientX - btnCenterX, 2) + 
+            Math.pow(e.clientY - btnCenterY, 2)
+        );
+
+        // If mouse gets within 150px (increased range), trigger the jump
+        if (distance < 150) {
+            runAway();
+        }
+    });
+
+    // 2. UPDATE YOUR EXISTING runAway FUNCTION TO THIS:
     function runAway() {
         const noBtn = document.getElementById('noBtn');
         
-        // Calculate random position within viewport with padding
-        const padding = 50;
+        // Increased padding to keep it away from edges/corners
+        const padding = 100;
         const maxX = window.innerWidth - noBtn.offsetWidth - padding;
         const maxY = window.innerHeight - noBtn.offsetHeight - padding;
         
         const randomX = Math.max(padding, Math.random() * maxX);
         const randomY = Math.max(padding, Math.random() * maxY);
         
-        // Apply position
+        // Removed transition so it teleports instantly
+        noBtn.style.transition = 'none';
         noBtn.style.position = 'fixed';
         noBtn.style.left = randomX + 'px';
         noBtn.style.top = randomY + 'px';
-        noBtn.style.transition = 'all 0.3s ease';
         noBtn.style.zIndex = '1000';
     }
 
