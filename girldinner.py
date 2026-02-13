@@ -1,7 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import resend  # <--- Changed
 from datetime import datetime
 import os
 
@@ -9,47 +7,35 @@ app = Flask(__name__)
 
 responses = []
 
-# Email configuration - uses environment variables
-EMAIL_ADDRESS = os.environ.get('EMAIL_ADDRESS', 'fazeelath.faruqhi@gmail.com')
-EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD', 'pbal swom pqwj jjgi')
+# 1. Initialize Resend with your API Key from Railway Environment Variables
+resend.api_key = os.environ.get('RESEND_API_KEY')
 NOTIFY_EMAIL = os.environ.get('NOTIFY_EMAIL', 'fazeelath.faruqhi@gmail.com')
 
 def send_email_notification(name, response):
-    """Send email notification when someone RSVPs"""
+    """Send email notification using Resend API (Railway Friendly)"""
     try:
-        # Create message
-        msg = MIMEMultipart()
-        msg['From'] = EMAIL_ADDRESS
-        msg['To'] = NOTIFY_EMAIL
-        msg['Subject'] = f"🎉 Galentine's RSVP: {name} said {response}!"
+        # 2. Construct the email parameters
+        params = {
+            "from": "Galentine RSVP <onboarding@resend.dev>",
+            "to": [NOTIFY_EMAIL],
+            "subject": f"🎉 Galentine's RSVP: {name} said {response}!",
+            "html": f"""
+                <h3>New RSVP Alert! 💖</h3>
+                <p><strong>Name:</strong> {name}</p>
+                <p><strong>Response:</strong> {response}</p>
+                <p><strong>Time:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                <hr>
+                <p>Total RSVPs so far: {len(responses)}</p>
+            """
+        }
         
-        # Email body
-        body = f"""
-        New RSVP Alert! 💖
+        # 3. Send via Resend (uses HTTPS Port 443, which isn't blocked)
+        email = resend.Emails.send(params)
         
-        Name: {name}
-        Response: {response}
-        Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-        
-        Total RSVPs so far: {len(responses)}
-        
-        ---
-        Galentine's Night 💕
-        """
-        
-        msg.attach(MIMEText(body, 'plain'))
-        
-        # Send email via Gmail SMTP
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        
-        print(f"Email sent for {name}'s RSVP!")
+        print(f"Email sent via Resend for {name}!")
         return True
     except Exception as e:
-        print(f"Failed to send email: {e}")
+        print(f"Resend API Failed: {e}")
         return False
 
 @app.route("/")
@@ -68,19 +54,15 @@ def rsvp():
         "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     })
     
-    print(f"RSVP received: {name} - {response}")
-    
-    # Send email notification
+    # Send the email
     send_email_notification(name, response)
 
     return jsonify({"message": f"Thanks {name}!"})
 
 @app.route("/responses", methods=["GET"])
 def get_responses():
-    """View all responses"""
     return jsonify(responses)
 
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
